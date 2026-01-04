@@ -2,10 +2,22 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import Icon from '@/components/ui/icon';
+
+interface CartItem {
+  id: number;
+  name: string;
+  model: string;
+  power: string;
+  quantity: number;
+}
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const products = {
     conditioners: [
@@ -61,6 +73,38 @@ const Index = () => {
     { phone: '+7 (917) 419-21-14', label: 'Техническая поддержка' }
   ];
 
+  const addToCart = (product: { id: number; name: string; model: string; power: string }) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prevCart, { ...product, quantity: 1 }];
+    });
+  };
+
+  const removeFromCart = (id: number) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== id));
+  };
+
+  const updateQuantity = (id: number, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(id);
+      return;
+    }
+    setCart(prevCart =>
+      prevCart.map(item => (item.id === id ? { ...item, quantity } : item))
+    );
+  };
+
+  const getTotalItems = () => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground shadow-lg">
@@ -73,7 +117,7 @@ const Index = () => {
                 <p className="text-sm opacity-90">Умный климат для вашего бизнеса</p>
               </div>
             </div>
-            <nav className="hidden md:flex gap-6">
+            <nav className="hidden md:flex gap-6 items-center">
               <button
                 onClick={() => setActiveSection('dashboard')}
                 className={`hover:opacity-80 transition-opacity ${activeSection === 'dashboard' ? 'font-semibold' : ''}`}
@@ -98,6 +142,95 @@ const Index = () => {
               >
                 Контакты
               </button>
+              <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+                <SheetTrigger asChild>
+                  <button className="relative hover:opacity-80 transition-opacity">
+                    <Icon name="ShoppingCart" size={24} />
+                    {getTotalItems() > 0 && (
+                      <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                        {getTotalItems()}
+                      </Badge>
+                    )}
+                  </button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-lg">
+                  <SheetHeader>
+                    <SheetTitle>Корзина</SheetTitle>
+                    <SheetDescription>
+                      Выбранное оборудование для запроса коммерческого предложения
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-4">
+                    {cart.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Icon name="ShoppingCart" size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>Корзина пуста</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                          {cart.map((item) => (
+                            <Card key={item.id}>
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold">{item.name}</h4>
+                                    <p className="text-sm text-muted-foreground">{item.model}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{item.power}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => removeFromCart(item.id)}
+                                    className="text-destructive hover:opacity-80"
+                                  >
+                                    <Icon name="Trash2" size={18} />
+                                  </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                  >
+                                    <Icon name="Minus" size={14} />
+                                  </Button>
+                                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                  >
+                                    <Icon name="Plus" size={14} />
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                        <div className="border-t pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">Всего позиций:</span>
+                            <span className="font-bold text-lg">{getTotalItems()}</span>
+                          </div>
+                          <Button
+                            className="w-full"
+                            size="lg"
+                            onClick={() => {
+                              setIsCartOpen(false);
+                              setActiveSection('contacts');
+                            }}
+                          >
+                            <Icon name="Phone" size={20} className="mr-2" />
+                            Получить коммерческое предложение
+                          </Button>
+                          <p className="text-xs text-center text-muted-foreground">
+                            Позвоните нам для уточнения цен и сроков поставки
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
             </nav>
           </div>
         </div>
@@ -242,10 +375,20 @@ const Index = () => {
                             </div>
                           ))}
                         </div>
-                        <Button className="w-full" onClick={() => setActiveSection('contacts')}>
-                          <Icon name="Phone" size={16} className="mr-2" />
-                          Узнать цену
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            variant="outline"
+                            onClick={() => addToCart(product)}
+                          >
+                            <Icon name="ShoppingCart" size={16} className="mr-2" />
+                            В корзину
+                          </Button>
+                          <Button className="flex-1" onClick={() => setActiveSection('contacts')}>
+                            <Icon name="Phone" size={16} className="mr-2" />
+                            Узнать цену
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -280,10 +423,20 @@ const Index = () => {
                             </div>
                           ))}
                         </div>
-                        <Button className="w-full" onClick={() => setActiveSection('contacts')}>
-                          <Icon name="Phone" size={16} className="mr-2" />
-                          Узнать цену
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            variant="outline"
+                            onClick={() => addToCart(product)}
+                          >
+                            <Icon name="ShoppingCart" size={16} className="mr-2" />
+                            В корзину
+                          </Button>
+                          <Button className="flex-1" onClick={() => setActiveSection('contacts')}>
+                            <Icon name="Phone" size={16} className="mr-2" />
+                            Узнать цену
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
